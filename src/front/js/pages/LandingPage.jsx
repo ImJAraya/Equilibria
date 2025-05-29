@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import bg from '../../img/BGEquilibria.png'; 
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -14,7 +15,7 @@ const LandingPage = () => {
             <header
                 className="text-white py-5 position-relative"
                 style={{
-                    backgroundImage: 'url("https://elmundoderegina.com/wp-content/uploads/2021/10/Salud-Mental.jpg")',
+                    backgroundImage: `url(${bg})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat',

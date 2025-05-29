@@ -1,6 +1,8 @@
 import React, { useContext, useState } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
+import bg from "../../img/login.jpg"; 
+import "../../styles/login.css";
 
 const Login = () => {
     const { store } = useContext(Context);
@@ -35,27 +37,20 @@ const Login = () => {
     };
 
     return (
-        <div className="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light">
-            <div className="row shadow rounded overflow-hidden" style={{ maxWidth: "900px", width: "100%", height: "600px" }}>
-                
+        <div className="login-container">
+            <div className="row login-row">
                 {/* Columna de imagen */}
-                <div className="col-md-6 d-none d-md-block p-0">
+                <div className="col-md-6 login-img-col">
                     <div
-                        className="h-100 w-100"
-                        style={{
-                            backgroundImage: "url('https://static.vecteezy.com/system/resources/previews/002/303/590/non_2x/mental-health-due-to-psychology-depression-loneliness-illness-brain-development-or-hopelessness-psychotherapy-and-mentality-healthcare-illustration-vector.jpg')",
-                            backgroundSize: "cover",
-                            backgroundRepeat: "no-repeat",
-                            backgroundPosition: "center",
-                            backgroundColor: "#e0f7fa",
-                        }}
+                        className="login-img-bg"
+                        style={{ backgroundImage: `url(${bg})` }}
                     ></div>
                 </div>
 
                 {/* Columna de formulario */}
-                <div className="col-md-6 bg-white p-5 d-flex flex-column justify-content-center">
-                    <h2 className="mb-3 text-center fw-bold text-dark">Bienvenido de nuevo</h2>
-                    <p className="text-muted text-center mb-4">Inicia sesión con tu cuenta</p>
+                <div className="col-md-6 login-form-col">
+                    <h2 className="login-title">Bienvenido de nuevo</h2>
+                    <p className="login-subtitle">Inicia sesión con tu cuenta</p>
 
                     <form onSubmit={handleSubmit} noValidate className={`needs-validation ${validated ? "was-validated" : ""}`}>
                         <div className="mb-3">
@@ -85,7 +80,7 @@ const Login = () => {
                         </div>
 
                         <div className="mb-3 text-end">
-                            <a href="/reestablecer-contrasena" className="text-decoration-none text-primary small">
+                            <a href="/reestablecer-contrasena" className="login-link">
                                 ¿Olvidaste tu contraseña?
                             </a>
                         </div>
@@ -104,40 +99,6 @@ const Login = () => {
                     </form>
                 </div>
             </div>
-
-            <style>
-                {`
-                    /* Botones morados */
-                    .btn-purple {
-                        background-color: #6f42c1;
-                        color: white;
-                    }
-
-                    .btn-purple:hover {
-                        background-color: #5a2e9f;
-                        color: white;
-                    }
-
-                    .btn-outline-purple {
-                        border-color: #6f42c1;
-                        color: #6f42c1;
-                    }
-
-                    .btn-outline-purple:hover {
-                        background-color: #6f42c1;
-                        color: white;
-                    }
-
-                    /* Enlace morado */
-                    .text-purple {
-                        color: #6f42c1 !important;
-                    }
-
-                    .text-purple:hover {
-                        color: #5a2e9f !important;
-                    }
-                `}
-            </style>
         </div>
     );
 };
