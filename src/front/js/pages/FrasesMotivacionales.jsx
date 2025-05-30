@@ -19,19 +19,24 @@ const FrasesMotivacionales = () => {
 
     const handleGuardarFavorito = (frase) => {
         const favoritoCompleto = {
-            "type": "quote",             
-            "quote_text": frase.quote,  
-            "author": frase.author,  
-            "description": "N/A", 
+            "type": "quote",
+            "quote_text": frase.quote,
+            "author": frase.author,
+            "description": "N/A",
             "url": "N/A",
             "title": "N/A",
         }
-        
+
         actions.guardarFavorito(favoritoCompleto);
         setFavoritos((prevFavoritos) => [...prevFavoritos, frase.quote]);
     };
 
     useEffect(() => {
+        if (!store.info) {
+            alert("Debes iniciar sesión primero.");
+            navigate("/login");
+            return;
+        }
         actions.verificarToken();
         actions.frasesMotivacionales();
     }, []);

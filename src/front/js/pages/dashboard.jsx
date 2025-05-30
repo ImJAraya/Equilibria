@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import Checkout from "../component/checkout.jsx";
+import logo from "../../img/equilibra-logo.png";
 import "../../styles/index.css";
+
 
 const Dashboard = () => {
     const initialOptions = {
@@ -52,12 +54,18 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
+        if (!store.info) {
+            alert("Debes iniciar sesión primero.");
+            navigate("/login");
+            return;
+        }
         actions.fraseMotivacional();
-    }, [store.info.is_premium]);
+    }, [store.info?.is_premium]);
 
     return (
         <PayPalScriptProvider options={initialOptions}>
-            <div>
+            <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+                <div className="bg-gradient"></div>
                 {store.info?.force_password_change ? (
                     <div className="alert alert-warning text-center">
                         <h4 className="alert-heading">¡Atención!</h4>
@@ -78,8 +86,8 @@ const Dashboard = () => {
                 ) : (
                     <div>
                         {/* Header amigable */}
-                        <div className="w-100 d-flex justify-content-between align-items-center p-3 bg-white shadow-sm">
-                            <h1 className="page-title">Equilibra</h1>
+                        <div className="w-100 d-flex justify-content-between align-items-center p-3 shadow-sm">
+                            <h1 className="page-title">Equilibria</h1>
                             <div className="d-flex gap-2">
                                 {/* Mostrar botón solo si el usuario no es premium */}
                                 {!store.info?.is_premium && (
@@ -105,13 +113,13 @@ const Dashboard = () => {
                         </div>
 
                         {/* Bienvenida y frase motivacional */}
-                        <div className="container d-flex flex-column align-items-center justify-content-center min-vh-100 bg-light p-4">
+                        <div className="container d-flex flex-column align-items-center justify-content-center min-vh-100 p-4 ">
                             {store.info ? (
                                 <>
                                     <div className="modal-body">
-                                        <h2 className="text-primary mb-3">¡Hola, {store.info.name}! 😊</h2>
+                                        <h2 className="text-primary mb-3">¡Nos alegra verte de nuevo, {store.info.name}! 😊</h2>
                                         Bienvenido a Equilibria ✨
-                                        <p className="mt-2">Tu bienestar es nuestra prioridad. Algunas respuestas y recomendaciones son generadas automáticamente por nuestra IA para brindarte una experiencia más personalizada.</p>
+                                        <p className="mt-2">Tu bienestar es nuestra prioridad. Algunas recomendaciones se generan con IA para ayudarte de forma personalizada.</p>
                                     </div>
                                     {store.loadingFraseMotivacionalIA ? (
                                         <div className="alert alert-info text-center w-100">
@@ -129,8 +137,9 @@ const Dashboard = () => {
                                         <div className="col">
                                             <div className="card h-100 shadow-sm">
                                                 <div className="card-body text-center">
-                                                    <h5 className="card-title">Diario personal</h5>
-                                                    <p className="card-text">Escribe y reflexiona sobre tu día.</p>
+                                                    <i className="fa-solid fa-book-open fa-2x mb-3" style={{ color: '#7ca08e' }}></i>
+                                                    <h5 className="card-title">Escribe tu día</h5>
+                                                    <p className="card-text text-muted">Reflexiona sobre tu día y plasma tus pensamientos.</p>
                                                     <button
                                                         className="btn btn-primary"
                                                         onClick={() => handleNavigate("/diario")}
@@ -145,8 +154,9 @@ const Dashboard = () => {
                                         <div className="col">
                                             <div className="card h-100 shadow-sm">
                                                 <div className="card-body text-center">
-                                                    <h5 className="card-title">Frases motivacionales</h5>
-                                                    <p className="card-text">Encuentra esa frase que te impulse.</p>
+                                                    <i className="fa-solid fa-comment-dots fa-2x mb-3" style={{ color: '#7ca08e' }}></i>
+                                                    <h5 className="card-title">Inspírate hoy</h5>
+                                                    <p className="card-text text-muted">Encuentra esa frase que te impulse.</p>
                                                     <button
                                                         className="btn btn-secondary"
                                                         onClick={() => handleNavigate("/frases-motivacionales")}
@@ -161,8 +171,9 @@ const Dashboard = () => {
                                         <div className="col">
                                             <div className="card h-100 shadow-sm">
                                                 <div className="card-body text-center">
+                                                    <i className="fa-solid fa-lightbulb fa-2x mb-3" style={{ color: '#7ca08e' }}></i>
                                                     <h5 className="card-title">Recomendaciones</h5>
-                                                    <p className="card-text">Sugerencias para tu bienestar.</p>
+                                                    <p className="card-text text-muted">Sugerencias para tu bienestar.</p>
                                                     <button
                                                         className="btn btn-success"
                                                         onClick={() => handleNavigate("/recomendaciones")}
@@ -177,8 +188,9 @@ const Dashboard = () => {
                                         <div className="col">
                                             <div className="card h-100 shadow-sm">
                                                 <div className="card-body text-center">
-                                                    <h5 className="card-title">Favoritos</h5>
-                                                    <p className="card-text">Guarda lo que más te inspira.</p>
+                                                    <i className="fa-regular fa-star fa-2x mb-3" style={{ color: '#e6b800' }}></i>
+                                                    <h5 className="card-title">Mis favoritos</h5>
+                                                    <p className="card-text text-muted">Guarda lo que más te inspira.</p>
                                                     <button
                                                         className="btn btn-warning"
                                                         onClick={() => handleNavigateFavoritos()}
@@ -193,8 +205,9 @@ const Dashboard = () => {
                                         <div className="col">
                                             <div className="card h-100 shadow-sm">
                                                 <div className="card-body text-center">
+                                                    <i className="fa-regular fa-user fa-2x mb-3" style={{ color: '#7ca08e' }}></i>
                                                     <h5 className="card-title">Mi perfil</h5>
-                                                    <p className="card-text">Actualiza tus datos personales.</p>
+                                                    <p className="card-text text-muted">Actualiza tus datos personales.</p>
                                                     <button
                                                         className="btn btn-info"
                                                         onClick={() => handleNavigate("/cambiar-info")}

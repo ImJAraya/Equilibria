@@ -11,6 +11,11 @@ const Diario = () => {
     const [endDate, setEndDate] = useState("");
 
     useEffect(() => {
+        if (!store.info) {
+            alert("Debes iniciar sesión primero.");
+            navigate("/login");
+            return;
+        }
         const fetchData = async () => {
             const seccion = "listaEntradas";
             await actions.listaFetch(url, seccion);
@@ -18,7 +23,7 @@ const Diario = () => {
         };
 
         fetchData();
-    }, [url]);
+    }, [url, store.info]);
 
     const handleNavigate = (path) => {
         navigate(path);
@@ -41,7 +46,7 @@ const Diario = () => {
 
 
     const descargarPDF = async () => {
-        
+
         const s = startDate.trim();
         const e = endDate.trim();
 
@@ -94,7 +99,7 @@ const Diario = () => {
             </div>
 
             {/* Lista de entradas */}
-            
+
             <div>
                 <div className="row g-3 align-items-end mb-4">
                     <div className="col-md-5">
@@ -129,12 +134,12 @@ const Diario = () => {
                             Filtrar
                         </button>
                         {store.listaEntradas && store.listaEntradas.length > 0 && (
-                        <button
-                            className="btn btn-primary "
-                            onClick={() => descargarPDF()}
-                        >
-                            Descargar PDF
-                        </button>)}
+                            <button
+                                className="btn btn-primary "
+                                onClick={() => descargarPDF()}
+                            >
+                                Descargar PDF
+                            </button>)}
                     </div>
                 </div>
                 {store.listaEntradas && store.listaEntradas.length > 0 ? (

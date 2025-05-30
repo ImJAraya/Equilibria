@@ -15,10 +15,14 @@ const Favoritos = () => {
     };
 
     useEffect(() => {
+        if (!store.info) {
+            alert("Debes iniciar sesión primero.");
+            navigate("/login");
+            return;
+        }
         const url = "api/favorite-quotes";
         actions.fetchFavoritos(url);
-    }
-        , []);
+    }, []);
     return (
         <div className="container mt-5">
             {/* Botones superiores */}

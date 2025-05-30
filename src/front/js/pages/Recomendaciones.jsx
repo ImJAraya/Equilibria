@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";  
+import React, { useEffect, useState } from "react";
 import { useContext } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
@@ -19,15 +19,23 @@ const Recomendaciones = () => {
     const handleGuardarFavorito = (obj) => {
         console.log(obj);
         const favoritoCompleto = {
-            "type": obj.type,             
-            "quote_text": "N/A",  
-            "author": "N/A",  
-            "description": obj.description, 
+            "type": obj.type,
+            "quote_text": "N/A",
+            "author": "N/A",
+            "description": obj.description,
             "url": obj.url,
             "title": obj.title,
         }
         actions.guardarFavorito(favoritoCompleto);
     }
+
+    useEffect(() => {
+        if (!store.info) {
+            alert("Debes iniciar sesión primero.");
+            navigate("/login");
+            return;
+        }
+    }, []);
 
     return (
         <div className="container mt-5">
@@ -79,10 +87,10 @@ const Recomendaciones = () => {
             ) : (
                 <h2 className="text-danger text-center mt-4">No tienes recomendaciones.</h2>
             )}
-            
+
         </div>
     );
 }
-    
+
 
 export default Recomendaciones;

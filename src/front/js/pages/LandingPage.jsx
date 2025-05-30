@@ -100,16 +100,7 @@ const LandingPage = () => {
                 </div>
             </main>
 
-            <motion.footer
-                className="bg-white py-4 border-top mt-auto"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1.2, delay: 0.5 }}
-            >
-                <div className="container text-center text-muted small">
-                    &copy; {new Date().getFullYear()} Equilibria. Todos los derechos reservados.
-                </div>
-            </motion.footer>
+            
         </div>
     );
 };
