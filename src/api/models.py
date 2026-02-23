@@ -1,5 +1,4 @@
 from flask_sqlalchemy import SQLAlchemy  # Para base de datos
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy import Column, Integer, String, Boolean
 
 import datetime
@@ -15,7 +14,7 @@ class User(db.Model):
     is_active = Column(Boolean, unique=False, nullable=False, default=True)
     is_admin = Column(Boolean, default=False)
     force_password_change = Column(Boolean, default=False)
-    preferences = db.Column(ARRAY(db.String), nullable=True)
+    preferences = db.Column(db.JSON, nullable=True)
     is_premium = Column(Boolean, default=False)
 
     diary_entries = db.relationship('Entrada', back_populates='user')

@@ -1,0 +1,33 @@
+.eq-admin .eq-admin-header {
+  background: linear-gradient(135deg, var(--primary), var(--info));
+}
+
+.eq-admin .eq-admin-title {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.eq-admin .eq-admin-btn-primary {
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.eq-admin .eq-admin-btn-primary:hover {
+  transform: scale(1.05);
+}
+
+.eq-admin .eq-admin-btn-warning {
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.eq-admin .eq-admin-btn-warning:hover {
+  transform: scale(1.05);
+}
+
+.eq-admin .eq-admin-btn-outline:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.eq-admin .eq-admin-card {
+  border-radius: var(--radius-md);
+}

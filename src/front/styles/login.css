@@ -45,26 +45,6 @@
     justify-content: center;
 }
 
-.btn-purple {
-    background-color: #6f42c1;
-    color: white;
-}
-
-.btn-purple:hover {
-    background-color: #5a2e9f;
-    color: white;
-}
-
-.btn-outline-purple {
-    border-color: #6f42c1;
-    color: #6f42c1;
-}
-
-.btn-outline-purple:hover {
-    background-color: #6f42c1;
-    color: white;
-}
-
 .login-link {
     text-decoration: none;
     color: #0d6efd;
@@ -73,5 +53,5 @@
 
 .login-link:hover {
     text-decoration: underline;
-    color: #6f42c1;
+    color: var(--primary);
 }

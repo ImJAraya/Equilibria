@@ -25,10 +25,10 @@ openai = "==0.28"
 reportlab = "*"
 
 [requires]
-python_version = "3.13"
+python_version = "3.10"
 
 [scripts]
-start="python -m flask run --reload -p 3001 -h 0.0.0.0"
+start="python -m flask run -p 3001 -h 0.0.0.0"
 init="flask db init"
 migrate="flask db migrate"
 local="heroku local"
