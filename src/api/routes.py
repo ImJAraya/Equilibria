@@ -23,6 +23,16 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 jwt = JWTManager()  
 bcrypt = Bcrypt()
 
+
+def get_current_admin():
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user)
+    if not user:
+        return None, (jsonify({'error': 'User not found'}), 404)
+    if not user.is_admin:
+        return None, (jsonify({'error': 'Unauthorized access'}), 403)
+    return user, None
+
 # Allow CORS requests to this API
 CORS(api)
 
@@ -43,7 +53,6 @@ def handle_create_user():
         password = request.json.get('password')
         name = request.json.get('name')
         gender= request.json.get('gender')
-        is_admin = request.json.get('is_admin', False) in [True, "true", "True"]
         if not email or not password or not name :
             return jsonify({'e': 'Email, Password and Name are required.'}), 400
         
@@ -53,7 +62,7 @@ def handle_create_user():
             return jsonify({'error': 'email already exists'}), 409
         
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        new_user = User(email=email, password=hashed_password, name=name, is_admin=is_admin, gender=gender)   
+        new_user = User(email=email, password=hashed_password, name=name, is_admin=False, gender=gender)   
         db.session.add(new_user)
         db.session.commit()
         return jsonify({'message': 'User created successfully'}), 201
@@ -364,24 +373,28 @@ El resultado debe estar 100% en formato JSON válido.
         return jsonify({'error': str(e)}), 500
 
 @api.route('/signup-admin', methods=['POST'])
-# @jwt_required()
+@jwt_required()
 def create_admin():
     try:
-        email = request.json.get('email')
-        password = request.json.get('password')
-        name = request.json.get('name')
-        gender= request.json.get('gender')
-        is_admin = request.json.get('is_admin', True) in [True, "true", "True"]
+        _, error_response = get_current_admin()
+        if error_response:
+            return error_response
+
+        data = request.get_json() or {}
+        email = data.get('email')
+        password = data.get('password')
+        name = data.get('name')
+        gender= data.get('gender')
         if not email or not password or not name :
             return jsonify({'e': 'Email, Password and Name are required.'}), 400
         
         existe_usuario= User.query.filter_by(email=email).first()
         
         if existe_usuario:
-            return jsonify({'error': 'email already exists'})
+            return jsonify({'error': 'email already exists'}), 409
         
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        new_user = User(email=email, password=hashed_password, name=name, is_admin=is_admin, gender=gender)   
+        new_user = User(email=email, password=hashed_password, name=name, is_admin=True, gender=gender)   
         db.session.add(new_user)
         db.session.commit()
         return jsonify({'message': 'User created successfully'}), 201
@@ -533,6 +546,8 @@ def make_remove_admin():
         user_to_admin = User.query.get(user_id)
         if not user_to_admin:
             return jsonify({'error': 'User not found'}), 404
+        if user_to_admin.is_admin and User.query.filter_by(is_admin=True).count() <= 1:
+            return jsonify({'error': 'At least one admin must remain'}), 400
         user_to_admin.is_admin = not user_to_admin.is_admin
         db.session.commit()
         return jsonify({'message': 'tarea lograda con exito'}), 200
@@ -703,15 +718,7 @@ def request_premium_upgrade():
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
-        if user.is_premium:
-            return jsonify({'message': 'User is already a premium member'}), 400
-
-        # Aquí podrías agregar lógica adicional, como enviar una solicitud al administrador
-        # o activar directamente el estado premium del usuario.
-        user.is_premium = True  # Suponiendo que existe un campo para solicitudes
-        db.session.commit()
-
-        return jsonify({'message': 'Premium upgrade request submitted successfully'}), 200
+        return jsonify({'error': 'Premium requires a validated backend payment'}), 403
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

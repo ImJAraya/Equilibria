@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
-from flask import Flask, request, jsonify, url_for, send_from_directory
+from flask import Flask, request, jsonify, url_for, send_from_directory, abort
 from flask_migrate import Migrate
 from flask_swagger import swagger
 from api.utils import APIException, generate_sitemap
@@ -19,6 +19,10 @@ ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
 static_file_dir = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '../public/')
 app = Flask(__name__)
+secret_key = os.getenv("FLASK_APP_KEY")
+if secret_key:
+    app.secret_key = secret_key
+    app.config['JWT_SECRET_KEY'] = secret_key
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 app.url_map.strict_slashes = False
@@ -42,6 +46,12 @@ with app.app_context():
 
 # add the admin
 setup_admin(app)
+
+if os.environ.get('ENABLE_FLASK_ADMIN') != '1':
+    @app.route('/admin/', defaults={'path': ''})
+    @app.route('/admin/<path:path>')
+    def disabled_admin(path):
+        abort(404)
 
 # add the admin
 setup_commands(app)
