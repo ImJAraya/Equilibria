@@ -59,8 +59,9 @@ const Dashboard = () => {
             navigate("/login");
             return;
         }
+        if (store.info.force_password_change) return;
         actions.fraseMotivacional();
-    }, [store.info?.is_premium]);
+    }, [store.info?.is_premium, store.info?.force_password_change]);
 
     return (
         <PayPalScriptProvider options={initialOptions}>

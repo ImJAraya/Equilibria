@@ -6,7 +6,7 @@ from api.models import db, User, FavoriteQuote, Entrada
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt 
-from flask_jwt_extended import  JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import  JWTManager, create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
@@ -23,6 +23,17 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 jwt = JWTManager()  
 bcrypt = Bcrypt()
 
+PUBLIC_ENDPOINTS = {
+    'api.handle_hello',
+    'api.handle_create_user',
+    'api.login',
+}
+
+PASSWORD_CHANGE_ALLOWED_ENDPOINTS = {
+    'api.handle_get_user',
+    'api.change_data',
+}
+
 
 def get_current_admin():
     current_user = get_jwt_identity()
@@ -32,6 +43,27 @@ def get_current_admin():
     if not user.is_admin:
         return None, (jsonify({'error': 'Unauthorized access'}), 403)
     return user, None
+
+
+@api.before_request
+def reject_suspended_authenticated_users():
+    if request.method == 'OPTIONS' or request.endpoint in PUBLIC_ENDPOINTS:
+        return None
+
+    verify_jwt_in_request(optional=True)
+    current_user = get_jwt_identity()
+    if not current_user:
+        return None
+
+    user = User.query.get(current_user)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if not user.is_active:
+        return jsonify({'error': 'User is suspended'}), 403
+    if user.force_password_change and request.endpoint not in PASSWORD_CHANGE_ALLOWED_ENDPOINTS:
+        return jsonify({'error': 'Password change required'}), 403
+
+    return None
 
 # Allow CORS requests to this API
 CORS(api)
@@ -49,10 +81,11 @@ def handle_hello():
 @api.route('/user', methods=['POST'])
 def handle_create_user():
     try:
-        email = request.json.get('email')
-        password = request.json.get('password')
-        name = request.json.get('name')
-        gender= request.json.get('gender')
+        data = request.get_json(silent=True) or {}
+        email = data.get('email')
+        password = data.get('password')
+        name = data.get('name')
+        gender= data.get('gender')
         if not email or not password or not name :
             return jsonify({'e': 'Email, Password and Name are required.'}), 400
         
@@ -68,33 +101,35 @@ def handle_create_user():
         return jsonify({'message': 'User created successfully'}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'User creation failed'}), 500
     
 @api.route('/login', methods=['POST'])
 def login():
     try:
-        email = request.json.get('email')
-        password = request.json.get('password')
+        data = request.get_json(silent=True) or {}
+        email = data.get('email')
+        password = data.get('password')
         if not email or not password:
             return jsonify({'e': 'Email and password are required.'}), 400
        
-        usuario= User.query.filter_by(email=email).one()
-        
+        usuario= User.query.filter_by(email=email).first()
         if not usuario:
-            return jsonify({'error': 'El email no esta registrado.'})
+            return jsonify({'error': 'Invalid email or password'}), 401
         
         password_guardada_en_db = usuario.password 
         password_correcta= bcrypt.check_password_hash(password_guardada_en_db, password)
 
-        if password_correcta:
-            id_usuario = usuario.id
-            token = create_access_token(identity = str(id_usuario))
-            return jsonify({'token': token}), 200
-        else:
-            return jsonify({'e':'la contrasenna no es correcta.'}), 404
+        if not password_correcta:
+            return jsonify({'error': 'Invalid email or password'}), 401
+        if not usuario.is_active:
+            return jsonify({'error': 'User is suspended'}), 403
+
+        id_usuario = usuario.id
+        token = create_access_token(identity = str(id_usuario))
+        return jsonify({'token': token, 'user': usuario.serialize()}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Login failed'}), 500
     
 @api.route('/user', methods=['GET'])
 @jwt_required()
@@ -109,7 +144,7 @@ def handle_get_user():
         return jsonify(user.serialize()), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Session verification failed'}), 500
 
 @api.route('/favorite-quotes', methods=['GET'])
 @jwt_required()
@@ -125,7 +160,7 @@ def handle_favorite_quotes():
         return favorites_list
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Favorite lookup failed'}), 500
 
 @api.route('/favorite', methods=['POST'])
 @jwt_required()
@@ -149,7 +184,7 @@ def create_favorite_quote():
         return jsonify(new_favorite.serialize()), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Favorite creation failed'}), 500
 
 @api.route('/favorite-del', methods=['DELETE'])
 @jwt_required()
@@ -172,7 +207,7 @@ def delete_favorite_quote():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Favorite deletion failed'}), 500
     
 @api.route('/entrada', methods=['POST'])
 @jwt_required()
@@ -194,7 +229,7 @@ def create_diary_entry():
         return jsonify(new_entry.serialize()), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Diary entry creation failed'}), 500
     
 
 @api.route('/consejo-personalizado', methods=['POST'])
@@ -234,7 +269,7 @@ def get_personalized_advice():
         return jsonify({'advice': advice}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Advice generation failed'}), 500
 
 @api.route('/frase-motivacional', methods=['POST'])
 @jwt_required()
@@ -270,7 +305,7 @@ Evita rodeos, explicaciones o texto adicional. El resultado debe estar 100% en f
         return jsonify(advice_json), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Quote generation failed'}), 500
 
 @api.route('/frases-motivacionales', methods=['POST'])
 @jwt_required()
@@ -316,7 +351,7 @@ Evita rodeos, explicaciones o texto adicional. El resultado debe estar 100% en f
         return jsonify(advice_json), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Quotes generation failed'}), 500
 
 @api.route('/recomendaciones', methods=['POST'])
 @jwt_required()
@@ -370,7 +405,7 @@ El resultado debe estar 100% en formato JSON válido.
         return jsonify(advice_json), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Recommendations generation failed'}), 500
 
 @api.route('/signup-admin', methods=['POST'])
 @jwt_required()
@@ -380,7 +415,7 @@ def create_admin():
         if error_response:
             return error_response
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         email = data.get('email')
         password = data.get('password')
         name = data.get('name')
@@ -400,7 +435,7 @@ def create_admin():
         return jsonify({'message': 'User created successfully'}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Admin user creation failed'}), 500
 
 @api.route('/admin/users', methods=['GET'])
 @jwt_required()
@@ -441,7 +476,7 @@ def get_all_users():
         return jsonify(users_list), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Admin users lookup failed'}), 500
 
 @api.route('/admin/force-reset-password', methods=['PATCH'])
 @jwt_required() 
@@ -464,7 +499,7 @@ def force_reset_password():
         return jsonify({'message': 'Password reset forced successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Password reset failed'}), 500
     
 @api.route('/user/change-data', methods=['PATCH'])
 @jwt_required()
@@ -476,6 +511,9 @@ def change_data():
             return jsonify({'error': 'User not found'}), 404
 
         data = request.get_json() or {}
+        if user.force_password_change and not data.get('new_password'):
+            return jsonify({'error': 'Password change required'}), 403
+
         allowed = {
             'new_password':   lambda v: bcrypt.generate_password_hash(v).decode('utf-8'),
             'new_email':      lambda v: v.strip().lower(),
@@ -505,7 +543,7 @@ def change_data():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'User data update failed'}), 500
 
 @api.route('/admin/suspender-activar-user', methods=['PATCH'])
 @jwt_required() 
@@ -528,7 +566,7 @@ def suspender_activar_user():
         return jsonify({'message': 'tarea lograda con exito'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'User status update failed'}), 500
 
 @api.route('/admin/hacer-deshacer-admin', methods=['PATCH'])
 @jwt_required()
@@ -553,7 +591,7 @@ def make_remove_admin():
         return jsonify({'message': 'tarea lograda con exito'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Admin role update failed'}), 500
 
 @api.route('/diario', methods=['GET'])
 @jwt_required()
@@ -598,7 +636,7 @@ def get_diary_entries():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Diary lookup failed'}), 500
    
 @api.route('/diario/export-pdf', methods=['POST'])
 @jwt_required()
@@ -706,7 +744,7 @@ def export_diary_pdf():
     except Exception as e:
         if buffer is not None:
             buffer.close()
-        return make_response(jsonify({"error": str(e)}), 500)
+        return make_response(jsonify({"error": "Diary PDF export failed"}), 500)
 
 @api.route('/user/upgrade', methods=['POST'])
 @jwt_required()
@@ -721,4 +759,4 @@ def request_premium_upgrade():
         return jsonify({'error': 'Premium requires a validated backend payment'}), 403
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Premium upgrade request failed'}), 500

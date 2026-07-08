@@ -34,6 +34,26 @@ const getState = ({ getStore, getActions, setStore }) => {
 			]
 		},
 		actions: {
+			handleAuthFailure: () => {
+				sessionStorage.removeItem("token");
+				getActions().setStoreDefault();
+			},
+			handleAuthResponse: async (resp) => {
+				if (resp.status === 401) {
+					getActions().handleAuthFailure();
+					return true;
+				}
+
+				if (resp.status !== 403 && resp.status !== 404) return false;
+
+				const data = await resp.clone().json().catch(() => ({}));
+				if (data.error === "User is suspended" || data.error === "User not found") {
+					getActions().handleAuthFailure();
+					return true;
+				}
+
+				return false;
+			},
 			// Use getActions to call a function within a fuction
 			exampleFunction: () => {
 				getActions().changeColor(0, "green");
@@ -74,14 +94,22 @@ const getState = ({ getStore, getActions, setStore }) => {
 						},
 						body: JSON.stringify(userData)
 					})
-					if (!resp.ok) {
-						throw new Error("Error accedeindo al user");
-					}
 					let data = await resp.json();
+					if (!resp.ok) {
+						getActions().handleAuthFailure();
+						return false;
+					}
+					if (!data.token || !data.user) {
+						getActions().handleAuthFailure();
+						return false;
+					}
 					sessionStorage.setItem("token", data.token);
-					return true;
+					setStore({ token: data.token, info: data.user });
+					return data.user;
 				} catch (error) {
 					console.log("Error loading message from backend", error)
+					getActions().handleAuthFailure();
+					return false;
 				}
 			},
 			userSignup: async (userData) => {
@@ -109,15 +137,18 @@ const getState = ({ getStore, getActions, setStore }) => {
 			},
 			adminSignup: async (userData) => {
 				try {
+					const token = sessionStorage.getItem("token");
 					const resp = await fetch(process.env.BACKEND_URL + "api/signup-admin", {
 						method: "POST",
 						headers: {
-							"Content-Type": "application/json"
+							"Content-Type": "application/json",
+							"Authorization": "Bearer " + token
 						},
 						body: JSON.stringify(userData)
 					})
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						console.log(resp)
 						throw new Error("Something went wronggg");
 					}
@@ -136,8 +167,8 @@ const getState = ({ getStore, getActions, setStore }) => {
 					// fetching data from the backend
 					const token = sessionStorage.getItem("token");
 					if (!token) {
-						getActions.setStoreDefault()
-						return;
+						getActions().handleAuthFailure();
+						return false;
 					}
 					const resp = await fetch(process.env.BACKEND_URL + "api/user", {
 						method: "GET",
@@ -147,20 +178,26 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
-						throw new Error("Error, token no es correcto");
+						getActions().handleAuthFailure();
+						return false;
 					}
 					let data = await resp.json();
+					if (!data.is_active) {
+						getActions().handleAuthFailure();
+						return false;
+					}
 
-					setStore({ info: data });
-					return true;
+					setStore({ token, info: data });
+					return data;
 				} catch (error) {
 					console.log("Error loading message from backend", error)
+					getActions().handleAuthFailure();
+					return false;
 				}
 			},
 			logout: () => {
 				try {
-					sessionStorage.removeItem("token");
-					getActions.setStoreDefault();
+					getActions().handleAuthFailure();
 				} catch (error) {
 					console.log("Error al intentar cerrar sesión:", error);
 				}
@@ -176,6 +213,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 
 						throw new Error("Error, token no es correcto");
 					}
@@ -198,10 +236,22 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (resp.status === 404) {
-						setStore({ ...getStore(), favoritos: [] });
+						if (await getActions().handleAuthResponse(resp)) return false;
+						setStore({
+							...getStore(),
+							favoritos: {
+								quotes: [],
+								movies: [],
+								series: [],
+								podcasts: [],
+								books: [],
+								exercises: []
+							}
+						});
 						return true;
 					}
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					
@@ -249,6 +299,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						alert('There was an error trying to delete you favorite, try again')
 						throw new Error("Error, token no es correcto");
 					}
@@ -273,6 +324,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					setStore({ ...getStore(), estado: estado.mood_tag });
@@ -284,25 +336,11 @@ const getState = ({ getStore, getActions, setStore }) => {
 			},
 			isAdmin: async () => {
 				try {
-					const token = sessionStorage.getItem("token");
-					const resp = await fetch(process.env.BACKEND_URL + "api/user", {
-						method: "GET",
-						headers: {
-							"Authorization": "Bearer " + token
-						}
-					});
-
-					if (!resp.ok) {
-						throw new Error("Error, token no es correcto");
-					}
-					let data = await resp.json();
-
-					if (data.is_admin === true) {
-						return true;
-					}
-					return false;
+					const user = await getActions().verificarToken();
+					return user?.is_admin === true;
 				} catch (error) {
 					console.log("Error loading message from backend", error)
+					return false;
 				}
 			},
 			mensajePersonalizado: async (mood_tag) => {
@@ -318,6 +356,10 @@ const getState = ({ getStore, getActions, setStore }) => {
 						},
 						body: JSON.stringify({ mood_tag })
 					});
+					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
+						throw new Error("Error, token no es correcto");
+					}
 					const data = await resp.json();
 					setStore({ ...getStore(), mensajeIA: data.advice, loadingMensajeIA: false });
 					return true
@@ -343,6 +385,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					let data = await resp.json();
@@ -366,6 +409,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					let data = await resp.json();
@@ -391,6 +435,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					let data = await resp.json();
@@ -414,6 +459,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					let data = await resp.json();
@@ -437,6 +483,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 						body: JSON.stringify({ "user_id": user_id })
 					});
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 				}
@@ -456,6 +503,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 						body: JSON.stringify({ "user_id": user_id })
 					});
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 				}
@@ -475,6 +523,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 						body: JSON.stringify({ "user_id": user_id })
 					});
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 				}
@@ -494,6 +543,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 						body: JSON.stringify(datos)
 					});
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error("Error, token no es correcto");
 					}
 					return true;
@@ -520,6 +570,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error(`Error ${resp.status}`);
 					}
 
@@ -556,6 +607,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 					});
 
 					if (!resp.ok) {
+						await getActions().handleAuthResponse(resp);
 						throw new Error(`Error ${resp.status}`);
 					}
 					const store = getStore()
@@ -571,23 +623,31 @@ const getState = ({ getStore, getActions, setStore }) => {
 					...getStore(), info: { ...store.info, is_premium: true }
 				});
 			},
-			setStoreDefault: () => ({
-				pago: null,
-				info: null,
-				token: null,
-				mensajeIA: null,
-				message: null,
-				estado: null,
-				favoritos: {
-					quotes: null,
-					movies: null,
-					series: null,
-					podcasts: null,
-					books: null,
-					exercises: null
-				},
-				listaEntradas: []
-			})
+			setStoreDefault: () => {
+				setStore({
+					pago: null,
+					info: null,
+					token: null,
+					mensajeIA: null,
+					message: null,
+					estado: null,
+					loadingMensajeIA: false,
+					loadingFraseMotivacionalIA: false,
+					loadingFrasesMotivacionalesIA: false,
+					fraseMotivacional: null,
+					frasesMotivacionales: null,
+					recomendaciones: null,
+					favoritos: {
+						quotes: null,
+						movies: null,
+						series: null,
+						podcasts: null,
+						books: null,
+						exercises: null
+					},
+					listaEntradas: []
+				});
+			}
 
 		}
 

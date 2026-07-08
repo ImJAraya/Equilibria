@@ -5,7 +5,6 @@ import bg from "../../img/login.jpg";
 import "../../styles/login.css";
 
 const Login = () => {
-    const { store } = useContext(Context);
     const navigate = useNavigate();
     const { actions } = useContext(Context);
     const [email, setEmail] = useState("");
@@ -19,14 +18,14 @@ const Login = () => {
             return;
         }
 
-        const usuarioCorrecto = await actions.loginUsuario({ email, password });
-        if (usuarioCorrecto) {
-            if (!await actions.verificarToken()) return;
-            if (!store.info?.is_active) {
+        const user = await actions.loginUsuario({ email, password });
+        if (user) {
+            if (!user.is_active) {
+                actions.logout();
                 alert("El usuario no está activo");
                 return;
             }
-            if (await actions.isAdmin()) {
+            if (user.is_admin) {
                 navigate("/admin-dashboard");
             } else {
                 navigate("/dashboard");
